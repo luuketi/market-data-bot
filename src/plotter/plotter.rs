@@ -25,12 +25,13 @@ pub fn plot(data: &Vec<Quote>, title: &str) -> Result<Vec<u8>, Box<dyn std::erro
             if quote.low < min { min = quote.low; }
             if quote.high > max { max = quote.high; }
         }
+        let border = (max.unwrap() - min.unwrap()) / 10f32;
 
         let mut chart = ChartBuilder::on(&root)
             .x_label_area_size(70)
             .y_label_area_size(70)
             .caption(title, ("Calibri", 50.0).into_font())
-            .build_cartesian_2d(from_date..to_date, min.unwrap()-1f32..max.unwrap()+1f32)?;
+            .build_cartesian_2d(from_date..to_date, min.unwrap()-border..max.unwrap()+border)?;
 
         chart.configure_mesh().draw()?;
 

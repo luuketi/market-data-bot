@@ -19,7 +19,9 @@ const TELOXIDE_TOKEN: &str = "TELOXIDE_TOKEN";
 enum Command {
     #[command(description = "display this text.")]
     Help,
-    #[command(description = "show a graph for a currency pair with rates in the last 6M.")]
+    #[command(description = "show available currencies pairs")]
+    Pairs,
+    #[command(description = "show a graph for a currencies pair with rates in the last 6M.")]
     Rates{currency_pair: String},
 }
 
@@ -38,7 +40,7 @@ async fn main() {
         Err(_) => panic!("{TELOXIDE_TOKEN} env var not found"),
     }
 
-    let ts_client = TimeSeriesClient::new(tradermade_apykey);
+    let ts_client = TimeSeriesClient::new(tradermade_apykey, timeseries::client::ENDPOINT.to_string());
     let bot = Bot::new(teloxide_token);
 
     Command::repl(bot, move |bot, msg, cmd| answer(bot, msg, cmd, ts_client.clone())).await;
@@ -49,6 +51,12 @@ async fn answer<'a>(
     match cmd {
         Command::Help => {
             bot.send_message(msg.chat.id, Command::descriptions().to_string()).send().await?
+        },
+        Command::Pairs => {
+            let pairs = ts_client.get_currencies_pairs().await.unwrap().available_currencies;
+            let file = InputFile::memory(pairs.join(", ").into_bytes()).file_name("currencies_pairs.txt");
+            bot.send_message(msg.chat.id, "This is the list of available currencies pairs:").await?;
+            bot.send_document(msg.chat.id, file).send().await.expect("Failed to send request")
         },
         Command::Rates{currency_pair} => {
             if currency_pair.is_empty() {
@@ -61,7 +69,11 @@ async fn answer<'a>(
             let end_date = Utc::now() - Duration::days(1);
             let start_date = end_date - Duration::days(180);
 
-            let timeseries = ts_client.get(&currencies, start_date, end_date).await.unwrap();
+            let timeseries = ts_client.get_timeseries(&currencies, start_date, end_date).await.unwrap();
+            if timeseries.is_empty() {
+                bot.send_message(msg.chat.id, "Sorry, there is no data available for this currencies pair. Try a different one!").await?;
+                return Ok(());
+            }
 
             let file = create_plot_file(&currencies, &timeseries);
 
@@ -80,5 +92,5 @@ fn create_plot_file(currencies: &str, timeseries: &TimeSeries) -> InputFile {
 }
 
 fn sanitize_currencies(currencies: &str) -> String {
-    currencies.chars().filter(|c| !c.is_whitespace() || *c == '-').collect()
+    currencies.chars().filter(|c| !c.is_whitespace() && *c != '-').collect()
 }
