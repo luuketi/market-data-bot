@@ -1,8 +1,3 @@
-use chrono::{Utc};
-use httpmock::prelude::*;
-use serde_json::{json};
-use crate::quote::quote::Quote;
-use crate::timeseries::client;
 
 #[test]
 fn get_currencies_pairs_test() {
@@ -123,12 +118,4 @@ fn get_timeseries_with_empty_quotes_test() {
     assert_eq!(expected_ts.start_date, ts.start_date);
     assert_eq!(expected_ts.end_date, ts.end_date);
     assert!(expected_ts.quotes.iter().zip(ts.quotes).all(assert_quotes));
-}
-
-fn assert_quotes((a, b): (&Quote, Quote)) -> bool {
-    (a.open == b.open) &&
-    (a.close == b.close) &&
-    (a.high == b.high) &&
-    (a.low == b.low) &&
-    (a.date == b.date)
 }
